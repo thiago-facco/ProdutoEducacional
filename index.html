@@ -1,0 +1,936 @@
+<meta charset="utf-8">
+<title>Trajetórias Técnicas</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  /* Tema claro (padrão) e tema escuro alternável pelo botão no cabeçalho. */
+  :root{
+    color-scheme: light;
+    --bg:#006400; --header-bg:#003900; --surface:#ffffff; --surface-2:#f4f4f4;
+    --ink:#0b0b0b; --ink-2:#3d3d3d; --muted:#6b6b6b;
+    --border:rgba(11,11,11,.12); --border-strong:rgba(11,11,11,.22);
+    --card-border:#000000; --filterbtn-bg:#000000; --filterbtn-fg:#ffffff;
+    --grid:#e6e6e6; --axis:#bdbdbd;
+    --accent:#4876FF; --accent-wash:#eaf0ff;
+    --good:#0ca30c; --critical:#d03b3b; --warning:#8B5A00;
+    --warning-wash:#fdf3e2;
+    --shadow: 0 1px 2px rgba(11,11,11,.05), 0 4px 16px rgba(11,11,11,.06);
+    --radius: 12px;
+  }
+
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --bg:#001a00; --header-bg:#000d00; --surface:#161b16; --surface-2:#20261f;
+    --ink:#f2f2ee; --ink-2:#d3d6cf; --muted:#9aa39a;
+    --border:rgba(255,255,255,.14); --border-strong:rgba(255,255,255,.28);
+    --card-border:#e8e8e2; --filterbtn-bg:#e8e8e2; --filterbtn-fg:#0b0b0b;
+    --grid:#2e352c; --axis:#4a534a;
+    --accent:#6f9bff; --accent-wash:#1c2740;
+    --good:#3ecf5f; --critical:#ff7a7a; --warning:#e0a83e;
+    --warning-wash:#33280f;
+    --shadow: 0 1px 2px rgba(0,0,0,.35), 0 4px 16px rgba(0,0,0,.45);
+    --radius: 12px;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:Arial, Helvetica, sans-serif;
+    padding-inline:16px; padding-block:0 24px; max-width:1180px; margin:0 auto;
+  }
+  h1,h2,h3{font-family:Arial, Helvetica, sans-serif; font-weight:700; text-transform:uppercase; text-wrap:balance; margin:0;}
+  .mono{font-family:Arial, Helvetica, sans-serif;}
+  .tnum{font-variant-numeric:tabular-nums;}
+
+  /* ---- header ---- */
+  header.top{
+    position:sticky; top:env(safe-area-inset-top,0px); z-index:30;
+    background:color-mix(in srgb, var(--header-bg) 92%, transparent);
+    backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+    padding-block:14px 10px; border-bottom:1px solid var(--border);
+    margin-inline:-16px; padding-inline:16px;
+  }
+  .brand{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;}
+  .brand h1{font-size:1.35rem; letter-spacing:-0.01em; color:#ffffff; font-weight:400; max-width:70ch;}
+  .brand h1 .lead{font-weight:700;}
+  .brand .tag{font-size:.72rem; color:#ffffff; font-family:Arial, Helvetica, sans-serif; letter-spacing:.03em; text-transform:uppercase; margin-top:4px;}
+  .subtitle{color:#ffffff; font-size:.88rem; margin-top:2px; max-width:70ch; margin-inline:auto; text-align:center;}
+
+  /* ---- filters ---- */
+  .filterbar{margin-top:12px;}
+  .filterrow{display:flex; flex-wrap:wrap; justify-content:center; gap:8px; align-items:center;}
+  .filter-group{position:relative;}
+  .filter-btn{
+    display:flex; align-items:center; gap:6px;
+    background:var(--filterbtn-bg); border:1px solid var(--filterbtn-bg); color:var(--filterbtn-fg);
+    border-radius:999px; padding:7px 12px; font-size:.82rem; cursor:pointer;
+    font-family:inherit; white-space:nowrap;
+  }
+  .filter-btn:hover{border-color:var(--accent);}
+  .filter-btn .count{
+    background:var(--accent); color:#fff; border-radius:999px; font-size:.68rem;
+    padding:1px 6px; font-family:Arial, Helvetica, sans-serif;
+  }
+  .filter-btn .chev{color:var(--filterbtn-fg); font-size:.65rem;}
+
+  .theme-toggle{
+    position:absolute; top:10px; right:16px;
+    display:flex; align-items:center; gap:6px;
+    background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.35); color:#ffffff;
+    border-radius:999px; padding:6px 12px; font-size:.75rem; cursor:pointer;
+    font-family:inherit; white-space:nowrap;
+  }
+  .theme-toggle:hover{background:rgba(255,255,255,.22);}
+  .filter-panel{
+    position:absolute; top:calc(100% + 6px); left:0; z-index:40;
+    background:var(--surface); border:1px solid var(--border-strong);
+    border-radius:10px; box-shadow:var(--shadow); padding:10px;
+    min-width:220px; max-width:280px; max-height:320px; overflow-y:auto;
+  }
+  .filter-panel[hidden]{display:none;}
+  .filter-panel .fp-actions{display:flex; justify-content:space-between; margin-bottom:6px; font-size:.72rem;}
+  .filter-panel .fp-actions button{background:none;border:none;color:var(--accent);cursor:pointer;font-family:inherit;font-size:.72rem;padding:2px 4px;}
+  .fp-item{display:flex; align-items:center; gap:8px; padding:5px 4px; border-radius:6px; font-size:.82rem; cursor:pointer;}
+  .fp-item:hover{background:var(--surface-2);}
+  .fp-item input{accent-color:var(--accent); width:15px; height:15px; flex:none;}
+  .fp-search{width:100%; margin-bottom:6px; padding:6px 8px; border-radius:6px; border:1px solid var(--border); background:var(--surface); color:var(--ink); font-size:.8rem; font-family:inherit;}
+
+  .clearbtn{
+    background:none; border:1px dashed rgba(255,255,255,.5); color:#ffffff;
+    border-radius:999px; padding:6px 12px; font-size:.8rem; cursor:pointer; font-family:inherit;
+  }
+  .clearbtn:hover{color:#ffd9d9; border-color:#ffd9d9;}
+
+  .resultstrip{
+    display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap;
+    margin-top:10px; font-size:.82rem; color:#e6f2e6;
+  }
+  .resultstrip b{color:#ffffff; font-family:Arial, Helvetica, sans-serif;}
+
+  /* ---- sections ---- */
+  section{margin-top:30px;}
+  .sec-head{display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:12px; flex-wrap:wrap;}
+  .sec-head h2{font-size:1.05rem; color:#ffffff;}
+  .sec-head .sec-note{font-size:.78rem; color:#e6f2e6;}
+
+  .banner{
+    display:flex; gap:10px; align-items:flex-start;
+    background:var(--warning-wash); border:1px solid color-mix(in srgb, var(--warning) 45%, transparent);
+    border-radius:10px; padding:11px 14px; font-size:.82rem; color:var(--ink-2); margin-top:14px;
+  }
+  .banner .ic{color:var(--warning); font-size:1.05rem; line-height:1;}
+  .banner strong{color:var(--ink);}
+
+  /* ---- KPI grid ---- */
+  .kpi-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:10px;}
+  .kpi-grid.kpi-grid-5{grid-template-columns:repeat(5,1fr);}
+  .kpi-grid.kpi-grid-6{grid-template-columns:repeat(6,1fr);}
+  .kpi-grid.secondary{grid-template-columns:repeat(3,1fr); margin-top:10px;}
+  .kpi{
+    background:var(--surface); border:3px solid var(--card-border); border-radius:var(--radius);
+    padding:14px 14px 12px; box-shadow:var(--shadow); min-width:0;
+    text-align:center;
+  }
+  .kpi .lbl{font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin-bottom:6px;}
+  .kpi .val{font-family:Arial, Helvetica, sans-serif; font-weight:600; font-size:1.55rem; line-height:1.1;}
+  .kpi.secondary .val{font-size:1.15rem;}
+  .kpi .sub{font-size:.72rem; color:var(--ink-2); margin-top:4px;}
+  .kpi.accentline{border-left:3px solid var(--accent);}
+  .kpi.goodline{border-left:3px solid var(--good);}
+  .kpi.critline{border-left:3px solid var(--critical);}
+  .kpi.mutedline{border-left:3px solid var(--muted);}
+  .kpi.outrosline{border-left:3px dashed var(--muted);}
+
+  @media (max-width:820px){
+    .kpi-grid{grid-template-columns:repeat(2,1fr);}
+    .kpi-grid.kpi-grid-5{grid-template-columns:repeat(2,1fr);}
+    .kpi-grid.kpi-grid-6{grid-template-columns:repeat(2,1fr);}
+    .kpi-grid.secondary{grid-template-columns:repeat(2,1fr);}
+  }
+
+  /* ---- chart cards ---- */
+  .chart-grid{display:grid; grid-template-columns:1fr; gap:14px;}
+
+  .card{
+    background:var(--surface); border:3px solid var(--card-border); border-radius:var(--radius);
+    padding:16px; box-shadow:var(--shadow);
+  }
+  .card h3{font-size:.92rem; margin-bottom:2px; text-align:center;}
+  .card .cap{font-size:.76rem; color:var(--muted); margin-bottom:10px; max-width:60ch; margin-inline:auto; text-align:center;}
+  .chart-wrap{position:relative; height:280px; overflow-x:auto; overflow-y:hidden;}
+  .chart-wrap.tall{height:320px;}
+  .chart-wrap canvas{max-width:100%;}
+  .chart-wrap.scrollx{min-width:100%;}
+  .chart-wrap.scrollx > div{min-width:560px; height:100%;}
+
+  .legend-note{font-size:.72rem; color:var(--muted); margin-top:8px;}
+
+  /* ---- evasao config ---- */
+  .evasao-box{
+    background:var(--surface-2); border:1px solid var(--border); border-radius:10px;
+    padding:10px 12px; margin-top:12px; font-size:.8rem; text-align:center;
+  }
+  .evasao-box .evasao-title{display:block; letter-spacing:.03em;}
+  .evasao-chips{
+    display:flex; gap:10px; flex-wrap:nowrap; overflow-x:auto; align-items:center; justify-content:center;
+    margin-top:8px; padding-bottom:2px;
+  }
+  .evasao-box .chip{
+    display:flex; align-items:center; gap:5px; background:var(--surface); border:1px solid var(--border-strong);
+    padding:4px 9px; border-radius:999px; cursor:pointer; white-space:nowrap; flex:none;
+  }
+  .evasao-box .chip input{accent-color:var(--good);}
+  .evasao-box .lead{color:var(--ink-2); font-size:.78rem; display:block; margin-top:8px;}
+
+  /* ---- methodology ---- */
+  details.method{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:14px 16px; box-shadow:var(--shadow);
+  }
+  details.method summary{cursor:pointer; font-weight:700; text-transform:uppercase; font-size:.92rem; list-style:none; display:flex; align-items:center; gap:8px;}
+  details.method summary::-webkit-details-marker{display:none;}
+  details.method summary::before{content:"▸"; color:var(--accent); transition:transform .15s;}
+  details.method[open] summary::before{transform:rotate(90deg);}
+  .method-grid{margin-top:12px; display:grid; grid-template-columns:1fr 1fr; gap:16px; font-size:.82rem; color:var(--ink-2);}
+  @media (max-width:820px){.method-grid{grid-template-columns:1fr;}}
+  .method-grid h4{font-size:.8rem; color:var(--ink); margin:0 0 6px;}
+  .method-grid ul{margin:0; padding-left:18px; display:flex; flex-direction:column; gap:5px;}
+  .method-grid code{font-family:Arial, Helvetica, sans-serif; font-size:.75rem; background:var(--surface-2); padding:1px 5px; border-radius:4px;}
+
+  footer{margin-top:28px; padding-top:16px; border-top:1px solid rgba(255,255,255,.25); font-size:.72rem; color:#e6f2e6; text-align:center;}
+
+  ::-webkit-scrollbar{height:8px; width:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--border-strong); border-radius:4px;}
+</style>
+
+<header class="top">
+  <button type="button" class="theme-toggle" id="themeToggle"><span id="themeIcon">🌙</span><span id="themeLabel">Modo escuro</span></button>
+  <div class="brand">
+    <h1><span class="lead">PERMANECER OU EVADIR:</span> TENSÕES NA TRAJETÓRIA ESCOLAR DE ESTUDANTES DO ENSINO MÉDIO INTEGRADO DA EPT</h1>
+    <span class="tag">Ensino Médio Integrado · Painel Analítico</span>
+    <div class="subtitle">Ingresso, permanência, conclusão e evasão nos cursos técnicos integrados — dados extraídos em 06/10/2025.</div>
+  </div>
+
+  <div class="filterbar">
+    <div class="filterrow" id="filterRow"></div>
+    <div class="resultstrip">
+      <span id="resultCount">carregando…</span>
+      <button class="clearbtn" id="clearFilters">Limpar todos os filtros</button>
+    </div>
+  </div>
+</header>
+
+<div id="recentWarning" class="banner" hidden>
+  <span class="ic">&#9888;</span>
+  <div><strong>Atenção aos recortes recentes.</strong> Estudantes ingressantes em anos próximos ao da extração dos dados (2025) ainda estão, em sua maioria, com matrícula ativa e não tiveram o mesmo tempo disponível para concluir o curso que os recortes mais antigos. Diferenças nas taxas de conclusão entre recortes recentes e antigos não devem ser lidas como melhora ou piora de desempenho.</div>
+</div>
+
+<section id="kpis">
+  <div class="sec-head"><h2>Indicadores gerais</h2><span class="sec-note">Recalculados conforme os filtros selecionados</span></div>
+
+  <div class="kpi-grid kpi-grid-6">
+    <div class="kpi accentline"><div class="lbl">Total de registros</div><div class="val tnum" id="kpiTotal">–</div></div>
+    <div class="kpi mutedline"><div class="lbl">Matriculados (ativos)</div><div class="val tnum"><span id="kpiMatriculados">–</span> - <span id="kpiMatriculadosPct">–</span></div></div>
+    <div class="kpi goodline"><div class="lbl">Concluintes</div><div class="val tnum"><span id="kpiConcluintes">–</span> - <span id="kpiConcluintesPct">–</span></div></div>
+    <div class="kpi critline"><div class="lbl">Evadidos</div><div class="val tnum"><span id="kpiEvadidos">–</span> - <span id="kpiEvadidosPct">–</span></div><div class="sub">Incluindo Matriculados</div></div>
+    <div class="kpi critline" title="Evadidos dividido pelo total de estudantes que já não estão mais matriculados (Concluintes + Evadidos + Outros). Desconsidera os ainda matriculados, que não tiveram tempo de concluir ou evadir."><div class="lbl">Evasão</div><div class="val tnum" id="kpiTaxaEvasao">–</div><div class="sub">Desconsiderando Matriculados</div></div>
+    <div class="kpi outrosline" title="Registros que não são Matriculados, Concluintes nem se enquadram na definição atual de Evadidos."><div class="lbl">Outros</div><div class="val tnum" id="kpiOutros">–</div><div class="sub" id="kpiOutrosPct">–</div></div>
+  </div>
+
+  <div class="evasao-box">
+    <span class="lead evasao-title"><strong>"EVADIDOS" (CATEGORIA ANALÍTICA) AGRUPA:</strong></span>
+    <div class="evasao-chips">
+      <label class="chip"><input type="checkbox" data-sit="ABANDONO" checked> Abandono</label>
+      <label class="chip"><input type="checkbox" data-sit="CANCELAMENTO A PEDIDO" checked> Cancelamento a Pedido</label>
+      <label class="chip" title="Nenhum registro desta base usa esta situação, mas a categoria já vem marcada para o caso de existir em atualizações futuras."><input type="checkbox" data-sit="CANCELAMENTO ADMINISTRATIVO" checked> Cancelamento Administrativo <span style="color:var(--muted); font-size:.7em;">(0 registros)</span></label>
+      <label class="chip"><input type="checkbox" data-sit="TRANSFERÊNCIA EXTERNA" checked> Transferência Externa</label>
+      <label class="chip"><input type="checkbox" data-sit="TRANSFERÊNCIA INTERNA" checked> Transferência Interna</label>
+      <label class="chip"><input type="checkbox" data-sit="FALECIMENTO"> Falecimento</label>
+    </div>
+    <span class="lead">— marque/desmarque para alterar a regra. As categorias originais nunca são alteradas, apenas esta soma.</span>
+  </div>
+
+  <div class="kpi-grid secondary">
+    <div class="kpi secondary"><div class="lbl">Idade média no ingresso</div><div class="val tnum" id="kpiIdadeIngresso">–</div><div class="sub">aproximada, ver metodologia</div></div>
+    <div class="kpi secondary"><div class="lbl">Idade média · conclusão</div><div class="val tnum" id="kpiIdadeConclusao">–</div><div class="sub">estudantes concluintes</div></div>
+    <div class="kpi secondary"><div class="lbl">Idade média · evasão</div><div class="val tnum" id="kpiIdadeEvasao">–</div><div class="sub">estudantes evadidos (definição acima)</div></div>
+  </div>
+</section>
+
+<section id="sec-temporal">
+  <div class="sec-head"><h2>Evolução temporal</h2></div>
+  <div class="chart-grid full">
+    <div class="card">
+      <h3>Ingressantes por ano, por sexo</h3>
+      <div class="cap">Barras: matrículas iniciadas em cada ano de ingresso, separadas por sexo. Linha: total de ingressantes no ano (acompanhando a tendência geral), no recorte atual.</div>
+      <div class="chart-wrap"><canvas id="chartIngressantes"></canvas></div>
+    </div>
+  </div>
+</section>
+
+<section id="sec-situacao">
+  <div class="sec-head"><h2>Situações acadêmicas</h2></div>
+  <div class="chart-grid">
+    <div class="card">
+      <h3>Distribuição por situação acadêmica</h3>
+      <div class="cap">Quantidade e percentual de registros em cada situação, categorias originais da base.</div>
+      <div class="chart-wrap tall"><canvas id="chartSituacao"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Situação por recorte de ingresso</h3>
+      <div class="cap">Composição percentual das situações acadêmicas dentro de cada ano de ingresso.</div>
+      <div class="chart-wrap tall scrollx"><div><canvas id="chartCoorte"></canvas></div></div>
+    </div>
+  </div>
+  <div class="chart-grid full" style="margin-top:14px;">
+    <div class="card">
+      <h3>Tendência das situações por recorte</h3>
+      <div class="cap">Percentual de concluintes, evadidos (conforme definição atual) e matriculados em cada ano de ingresso — mostra como o desfecho muda entre recortes mais antigos e mais recentes.</div>
+      <div class="chart-wrap"><canvas id="chartTendencia"></canvas></div>
+    </div>
+  </div>
+</section>
+
+<section id="sec-permanencia">
+  <div class="sec-head"><h2>Permanência</h2></div>
+  <div class="chart-grid">
+    <div class="card">
+      <h3>Tempo até a situação registrada</h3>
+      <div class="cap" id="tempoSituacaoCap">Tempo médio decorrido (em meses) até cada situação acadêmica, no recorte atual.</div>
+      <div class="chart-wrap"><canvas id="chartTempo"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Idade média por situação acadêmica</h3>
+      <div class="cap">Idade na data da situação registrada; para matriculados, idade estimada na data de extração dos dados (06/10/2025).</div>
+      <div class="chart-wrap"><canvas id="chartIdade"></canvas></div>
+    </div>
+  </div>
+</section>
+
+<section id="sec-perfil">
+  <div class="sec-head"><h2>Perfil e modalidade de ingresso</h2></div>
+  <div class="chart-grid">
+    <div class="card">
+      <h3>Tipo de ingresso × situação acadêmica</h3>
+      <div class="cap">Distribuição percentual das situações acadêmicas dentro de cada modalidade de ingresso (cota/ampla concorrência).</div>
+      <div class="chart-wrap tall scrollx"><div><canvas id="chartIngressoSituacao"></canvas></div></div>
+    </div>
+    <div class="card">
+      <h3>Conclusão e abandono por modalidade de ingresso</h3>
+      <div class="cap">Percentuais calculados sobre o total de estudantes de cada modalidade no recorte atual (não números absolutos).</div>
+      <div class="chart-wrap tall"><canvas id="chartConclusaoAbandono"></canvas></div>
+    </div>
+  </div>
+  <div class="chart-grid full" style="margin-top:14px;">
+    <div class="card">
+      <h3>Cor/Raça × situação acadêmica</h3>
+      <div class="cap">Distribuição percentual das situações acadêmicas dentro de cada categoria de Cor/Raça declarada na base. Registros sem informação são identificados separadamente.</div>
+      <div class="chart-wrap tall scrollx"><div><canvas id="chartCorRaca"></canvas></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="sec-method">
+  <details class="method">
+    <summary>Metodologia, tratamentos e limitações dos dados</summary>
+    <div class="method-grid">
+      <div>
+        <h4>Tratamentos realizados na base</h4>
+        <ul id="methodTreat"></ul>
+      </div>
+      <div>
+        <h4>Variáveis derivadas e cálculos</h4>
+        <ul>
+          <li><b>Idade no ingresso</b>: <code>Data de Admissão − Data de Nascimento</code>, calculada em dias por estudante e convertida para anos (dias ÷ 365,25). Como a base só registra o ano de ingresso (não o dia/mês), a Data de Admissão é assumida como 1º de janeiro do ano de ingresso — mesma convenção usada em "Meses até a Situação". A idade média no ingresso é a soma da idade (em anos) de todos os estudantes dividida pelo total de estudantes — nenhum registro é excluído do cálculo, incluindo os de idade implausível listados abaixo.</li>
+          <li><b>Idade na situação</b>: calculada com precisão de dia entre a Data de Nascimento e a Data da Situação (ou a data de extração, 06/10/2025, para matriculados).</li>
+          <li><b>Tempo até a situação</b>: como a base não traz a data exata de ingresso (apenas o ano), assumiu-se 1º de janeiro do ano de ingresso como início, para fins de cálculo — uma aproximação, não um dado real. Nenhum registro desta base tem tempo negativo com essa referência.</li>
+          <li><b>Faixas de tempo</b>: até 6 meses; 7–12; 13–24; 25–36; mais de 36 meses.</li>
+          <li><b>Percentuais</b>: sempre calculados sobre o total de registros do próprio recorte/grupo em análise (denominador correto por categoria), nunca sobre o total geral da base.</li>
+          <li><b>Outros</b>: card com os registros que não são Matriculados, não são Concluintes e não se enquadram na definição atual de Evadidos. Hoje corresponde apenas a "Falecimento" (5 registros no total da base), que não é tratado como evasão nem conclusão. A soma de Matriculados + Concluintes + Evadidos + Outros sempre fecha com o Total de registros; se você marcar Falecimento como Evadido nos controles acima, ele sai de "Outros" e entra em "Evadidos".</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Limitações a considerar na leitura</h4>
+        <ul>
+          <li>Associação não é causalidade: o painel mostra padrões e distribuições, não relações de causa e efeito.</li>
+          <li>Recortes recentes (2023–2025) ainda não tiveram tempo integral de curso; taxas de conclusão/evasão desses recortes tendem a estar subestimadas em relação aos antigos.</li>
+          <li>"Ano de Ingresso", "Ano da Situação" e "Data da Situação" são eventos temporais distintos e não devem ser tratados como equivalentes.</li>
+          <li>30 estudantes possuem 2 registros na base (transferência interna entre cursos) — portanto "total de registros" não equivale exatamente a "total de pessoas".</li>
+          <li>A categoria "Evadidos" é uma construção analítica, ajustável pelos controles acima; a base original não usa esse rótulo.</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Sugestões não incluídas automaticamente</h4>
+        <ul>
+          <li>A base também traz CEP e UF (majoritariamente PR, com registros em SP); um recorte geográfico por UF poderia ser adicionado caso seja de interesse.</li>
+          <li>A aba "CLASSIFICAÇÃO" da planilha lista definições oficiais para "Cancelamento administrativo" e "Trancamento de matrícula", mas nenhum registro da base usa essas categorias — por isso elas não aparecem nos gráficos.</li>
+          <li>Não foi construído nenhum indicador de causalidade (ex.: "cota reduz evasão") — os cruzamentos exibidos são apenas descritivos.</li>
+        </ul>
+      </div>
+    </div>
+  </details>
+</section>
+
+<footer>Painel construído a partir da planilha fornecida (aba "MÉDIO", 1.651 registros). Dados extraídos em 06/10/2025.</footer>
+
+<script>
+(function(){
+  "use strict";
+
+  var STATE = {
+    rows: [], meta: null,
+    filters: { ano_ingresso:null, sexo:null, curso:null, situacao:null, cidade:null },
+    evasaoSet: new Set(["ABANDONO","CANCELAMENTO A PEDIDO","CANCELAMENTO ADMINISTRATIVO","TRANSFERÊNCIA EXTERNA","TRANSFERÊNCIA INTERNA"]),
+    charts: {}
+  };
+
+  // Ordem fixa usada em legendas/eixos: categorias de "Evadidos" (tons de vermelho) agrupadas e em sequência
+  // do tom mais escuro ao mais claro, com as demais situações (não-evasão) antes e depois delas.
+  // "Falecimento" foi retirado da lista: não aparece em nenhum gráfico (permanece apenas nos
+  // indicadores/controles de "Evadidos" acima, onde o usuário pode incluí-lo na definição analítica).
+  var SITUACAO_ORDER = ["CONCLUSÃO DE CURSO","MATRICULADO","ABANDONO","CANCELAMENTO A PEDIDO","TRANSFERÊNCIA EXTERNA","TRANSFERÊNCIA INTERNA"];
+  // Cores definidas pelo usuário para cada situação (fixas, não seguem o tema).
+  var SITUACAO_COLOR_MAP = {
+    // Categorias que compõem "Evadidos": paleta em tons de vermelho, do mais escuro ao mais claro.
+    "ABANDONO":               "#7f1010",
+    "CANCELAMENTO A PEDIDO":  "#b71c1c",
+    "CANCELAMENTO ADMINISTRATIVO": "#d32f2f",
+    "TRANSFERÊNCIA EXTERNA":  "#ef5350",
+    "TRANSFERÊNCIA INTERNA":  "#ff8a80",
+    "MATRICULADO":            "#00FF00",
+    "FALECIMENTO":            "#A9A9A9",
+    "CONCLUSÃO DE CURSO":     "#4876FF"
+  };
+
+  function cssv(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  function situacaoColor(sit){
+    return SITUACAO_COLOR_MAP[sit] || "#999999";
+  }
+  function fmtInt(n){ return new Intl.NumberFormat('pt-BR').format(Math.round(n)); }
+  function fmtPct(n){ return (isFinite(n) ? n.toFixed(1) : '0.0') + '%'; }
+  function fmtMeses(n){
+    if(n==null || !isFinite(n)) return '—';
+    if(n < 12) return n.toFixed(1) + ' meses';
+    return (n/12).toFixed(1) + ' Anos';
+  }
+  function mean(arr){ if(!arr.length) return null; return arr.reduce(function(a,b){return a+b;},0)/arr.length; }
+
+  /* ---------------- data load ---------------- */
+  if(typeof Chart === 'undefined'){
+    document.getElementById('resultCount').textContent = 'Não foi possível carregar a biblioteca de gráficos (Chart.js). Recarregue a página; se persistir, verifique sua conexão.';
+  }
+  fetch('data.json').then(function(r){return r.json();}).then(function(d){
+    STATE.rows = d.rows; STATE.meta = d.meta;
+    ["ano_ingresso","sexo","curso","situacao","cidade"].forEach(function(k){
+      var srcKey = k==="ano_ingresso" ? "anos_ingreso" : k;
+    });
+    STATE.filters.ano_ingresso = new Set(d.meta.anos_ingresso.map(String));
+    STATE.filters.sexo = new Set(d.meta.sexos);
+    STATE.filters.curso = new Set(d.meta.cursos);
+    STATE.filters.situacao = new Set(d.meta.situacoes);
+    STATE.filters.cidade = new Set(d.meta.cidades);
+    buildFilterUI();
+    buildMethodology();
+    recompute();
+  }).catch(function(e){
+    document.getElementById('resultCount').textContent = 'Erro ao carregar data.json: ' + e.message;
+  });
+
+  /* ---------------- filter UI ---------------- */
+  var FILTER_DEFS = [
+    {key:'ano_ingresso', label:'Ano de ingresso', metaKey:'anos_ingreso', isYear:true},
+    {key:'sexo', label:'Sexo', metaKey:'sexos'},
+    {key:'curso', label:'Curso', metaKey:'cursos'},
+    {key:'situacao', label:'Situação', metaKey:'situacoes'},
+    {key:'cidade', label:'Cidade', metaKey:'cidades', searchable:true}
+  ];
+
+  function buildFilterUI(){
+    var row = document.getElementById('filterRow');
+    row.innerHTML = '';
+    FILTER_DEFS.forEach(function(def){
+      var options = def.key==='ano_ingresso' ? STATE.meta.anos_ingresso.map(String) : STATE.meta[def.key+'s'] || STATE.meta[pluralKey(def.key)];
+      options = optionsFor(def.key);
+      var group = document.createElement('div'); group.className='filter-group';
+      var btn = document.createElement('button'); btn.className='filter-btn'; btn.type='button';
+      btn.innerHTML = '<span class="lbl">'+def.label+'</span><span class="count" data-count>'+options.length+'/'+options.length+'</span><span class="chev">▾</span>';
+      var panel = document.createElement('div'); panel.className='filter-panel'; panel.hidden = true;
+
+      var actions = document.createElement('div'); actions.className='fp-actions';
+      var allBtn = document.createElement('button'); allBtn.type='button'; allBtn.textContent='Selecionar tudo';
+      var noneBtn = document.createElement('button'); noneBtn.type='button'; noneBtn.textContent='Limpar';
+      actions.appendChild(allBtn); actions.appendChild(noneBtn);
+      panel.appendChild(actions);
+
+      var search;
+      if(def.searchable){
+        search = document.createElement('input'); search.className='fp-search'; search.placeholder='Buscar…'; search.type='text';
+        panel.appendChild(search);
+      }
+
+      var list = document.createElement('div');
+      list.setAttribute('data-list','');
+      panel.appendChild(list);
+
+      function renderList(filterText){
+        list.innerHTML='';
+        options.forEach(function(opt){
+          if(filterText && opt.toLowerCase().indexOf(filterText.toLowerCase())===-1) return;
+          var lab = document.createElement('label'); lab.className='fp-item';
+          var cb = document.createElement('input'); cb.type='checkbox';
+          cb.checked = STATE.filters[def.key].has(opt);
+          cb.addEventListener('change', function(){
+            if(cb.checked) STATE.filters[def.key].add(opt); else STATE.filters[def.key].delete(opt);
+            updateCount(); recompute();
+          });
+          lab.appendChild(cb);
+          lab.appendChild(document.createTextNode(opt));
+          list.appendChild(lab);
+        });
+      }
+      renderList('');
+      if(search){ search.addEventListener('input', function(){ renderList(search.value); }); }
+
+      function updateCount(){
+        btn.querySelector('[data-count]').textContent = STATE.filters[def.key].size + '/' + options.length;
+      }
+
+      allBtn.addEventListener('click', function(){ options.forEach(function(o){STATE.filters[def.key].add(o);}); renderList(search?search.value:''); updateCount(); recompute(); });
+      noneBtn.addEventListener('click', function(){ STATE.filters[def.key].clear(); renderList(search?search.value:''); updateCount(); recompute(); });
+
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
+        document.querySelectorAll('.filter-panel').forEach(function(p){ if(p!==panel) p.hidden = true; });
+        panel.hidden = !panel.hidden;
+      });
+
+      group.appendChild(btn); group.appendChild(panel);
+      row.appendChild(group);
+    });
+
+    document.addEventListener('click', function(){
+      document.querySelectorAll('.filter-panel').forEach(function(p){ p.hidden = true; });
+    });
+
+    document.getElementById('clearFilters').addEventListener('click', function(){
+      FILTER_DEFS.forEach(function(def){
+        var opts = optionsFor(def.key);
+        STATE.filters[def.key] = new Set(opts);
+      });
+      buildFilterUI();
+      recompute();
+    });
+
+    document.querySelectorAll('.evasao-box input[type=checkbox]').forEach(function(cb){
+      cb.addEventListener('change', function(){
+        var sit = cb.getAttribute('data-sit');
+        if(cb.checked) STATE.evasaoSet.add(sit); else STATE.evasaoSet.delete(sit);
+        recompute();
+      });
+    });
+  }
+
+  function pluralKey(k){ return k+'s'; }
+  function optionsFor(key){
+    if(key==='ano_ingresso') return STATE.meta.anos_ingresso.map(String);
+    if(key==='sexo') return STATE.meta.sexos;
+    if(key==='curso') return STATE.meta.cursos;
+    if(key==='situacao') return STATE.meta.situacoes;
+    if(key==='cidade') return STATE.meta.cidades;
+  }
+
+  /* ---------------- filtering ---------------- */
+  function filteredRows(){
+    var f = STATE.filters;
+    return STATE.rows.filter(function(r){
+      return f.ano_ingresso.has(String(r.ano_ingresso)) &&
+             f.sexo.has(r.sexo) &&
+             f.curso.has(r.curso) &&
+             f.situacao.has(r.situacao) &&
+             f.cidade.has(r.cidade);
+    });
+  }
+
+  /* ---------------- recompute + render ---------------- */
+  function recompute(){
+    var rows = filteredRows();
+    document.getElementById('resultCount').innerHTML = '<b class="tnum">'+fmtInt(rows.length)+'</b> registros no recorte atual (de '+fmtInt(STATE.rows.length)+' no total)';
+
+    var recentSelected = ['2023','2024','2025'].some(function(y){ return STATE.filters.ano_ingresso.has(y); });
+    document.getElementById('recentWarning').hidden = !recentSelected;
+
+    renderKPIs(rows);
+    renderIngressantes(rows);
+    renderSituacao(rows);
+    renderCoorte(rows);
+    renderTendencia(rows);
+    renderTempo(rows);
+    renderIdade(rows);
+    renderIngressoSituacao(rows);
+    renderConclusaoAbandono(rows);
+    renderCorRaca(rows);
+  }
+
+  function renderKPIs(rows){
+    var total = rows.length;
+    var matriculados = rows.filter(function(r){return r.situacao==='MATRICULADO';});
+    var concluintes = rows.filter(function(r){return r.situacao==='CONCLUSÃO DE CURSO';});
+    var evadidos = rows.filter(function(r){return STATE.evasaoSet.has(r.situacao);});
+    var outros = rows.filter(function(r){return r.situacao!=='MATRICULADO' && r.situacao!=='CONCLUSÃO DE CURSO' && !STATE.evasaoSet.has(r.situacao);});
+
+    document.getElementById('kpiTotal').textContent = fmtInt(total);
+    document.getElementById('kpiMatriculados').textContent = fmtInt(matriculados.length);
+    document.getElementById('kpiMatriculadosPct').textContent = fmtPct(100*matriculados.length/(total||1));
+    document.getElementById('kpiConcluintes').textContent = fmtInt(concluintes.length);
+    document.getElementById('kpiConcluintesPct').textContent = fmtPct(100*concluintes.length/(total||1));
+    document.getElementById('kpiEvadidos').textContent = fmtInt(evadidos.length);
+    document.getElementById('kpiEvadidosPct').textContent = fmtPct(100*evadidos.length/(total||1));
+
+    var naoMatriculados = total - matriculados.length;
+    document.getElementById('kpiTaxaEvasao').textContent = naoMatriculados>0 ? fmtPct(100*evadidos.length/naoMatriculados) : '—';
+
+    document.getElementById('kpiOutros').textContent = fmtInt(outros.length);
+    var outrosCounts = {};
+    outros.forEach(function(r){ outrosCounts[r.situacao] = (outrosCounts[r.situacao]||0)+1; });
+    var outrosLabel = Object.keys(outrosCounts).length
+      ? Object.keys(outrosCounts).map(function(s){ return cap(s)+' ('+outrosCounts[s]+')'; }).join(', ')
+      : 'nenhum registro fora das categorias acima';
+    document.getElementById('kpiOutrosPct').textContent = outrosLabel;
+
+    var idades = rows.map(function(r){return r.idade_ingresso;}).filter(function(v){return v!=null;});
+    document.getElementById('kpiIdadeIngresso').textContent = idades.length ? mean(idades).toFixed(1)+' anos' : '—';
+
+    var idadesConclusao = concluintes.map(function(r){return r.idade_situacao;}).filter(function(v){return v!=null;});
+    document.getElementById('kpiIdadeConclusao').textContent = idadesConclusao.length ? mean(idadesConclusao).toFixed(1)+' anos' : '—';
+
+    var idadesEvasao = evadidos.map(function(r){return r.idade_situacao;}).filter(function(v){return v!=null;});
+    document.getElementById('kpiIdadeEvasao').textContent = idadesEvasao.length ? mean(idadesEvasao).toFixed(1)+' anos' : '—';
+  }
+
+  function groupCount(rows, key){
+    var m = {};
+    rows.forEach(function(r){ var v=r[key]; m[v]=(m[v]||0)+1; });
+    return m;
+  }
+
+  function baseChartOptions(extra){
+    var ink2 = cssv('--ink-2'), muted = cssv('--muted'), grid = cssv('--grid'), surface = cssv('--surface'), border = cssv('--border-strong');
+    var opts = {
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'nearest', intersect:true},
+      plugins:{
+        legend:{ labels:{ color: ink2, font:{family:'Arial', size:11}, boxWidth:12, boxHeight:12, usePointStyle:true, pointStyle:'rectRounded' } },
+        tooltip:{ backgroundColor:surface, titleColor: cssv('--ink'), bodyColor: ink2, borderColor:border, borderWidth:1, padding:10, titleFont:{family:'Arial', weight:'600'}, bodyFont:{family:'Arial', size:11.5} }
+      },
+      scales:{
+        x:{ grid:{color:'transparent'}, ticks:{color:muted, font:{family:'Arial', size:10.5}} },
+        y:{ grid:{color:grid}, border:{display:false}, ticks:{color:muted, font:{family:'Arial', size:10.5}} }
+      }
+    };
+    return Object.assign(opts, extra||{});
+  }
+
+  function upsertChart(key, ctxId, config){
+    if(typeof Chart === 'undefined') return;
+    try{
+      var ctx = document.getElementById(ctxId);
+      if(STATE.charts[key]){ STATE.charts[key].destroy(); }
+      STATE.charts[key] = new Chart(ctx, config);
+    }catch(err){
+      console.error('Falha ao renderizar gráfico', key, err);
+    }
+  }
+
+  /* 1. Ingressantes por ano, por sexo (barras agrupadas) + total (linha) */
+  var SEXO_COLOR_MAP = { 'MASCULINO':'#2a78d6', 'FEMININO':'#B03060' };
+  function renderIngressantes(rows){
+    var years = STATE.meta.anos_ingresso;
+    var sexos = STATE.meta.sexos; // ex.: ['FEMININO','MASCULINO']
+    var byYear = {}; years.forEach(function(y){ byYear[y] = {}; sexos.forEach(function(s){ byYear[y][s]=0; }); });
+    rows.forEach(function(r){ if(byYear[r.ano_ingresso] && byYear[r.ano_ingresso][r.sexo]!=null) byYear[r.ano_ingresso][r.sexo]++; });
+    var order = sexos.slice().sort(); // ordem estável (FEMININO, MASCULINO)
+    var barDatasets = order.map(function(s){
+      return {
+        type:'bar', label:cap(s), order:2,
+        data: years.map(function(y){ return byYear[y][s]||0; }),
+        backgroundColor: SEXO_COLOR_MAP[s] || '#898781',
+        borderRadius:4, maxBarThickness:26
+      };
+    });
+    var total = years.map(function(y){ return order.reduce(function(acc,s){return acc+(byYear[y][s]||0);},0); });
+    var lineDataset = {
+      type:'line', label:'Total', order:1,
+      data: total, borderColor: cssv('--ink-2'), backgroundColor: cssv('--ink-2'),
+      borderWidth:2, tension:.3, pointRadius:3, pointBackgroundColor: cssv('--ink-2'),
+      pointBorderColor: cssv('--surface'), pointBorderWidth:1.5, fill:false
+    };
+    upsertChart('ingressantes','chartIngressantes',{
+      type:'bar',
+      data:{ labels: years, datasets: barDatasets.concat([lineDataset]) },
+      options: baseChartOptions({
+        scales:{ x:{grid:{color:'transparent'}, ticks:{color:cssv('--muted')}}, y:{grid:{color:cssv('--grid')}, ticks:{color:cssv('--muted')}, beginAtZero:true} },
+        plugins:{ legend:{position:'bottom'}, tooltip:{ callbacks:{ label:function(c){ return c.dataset.label+': '+fmtInt(c.parsed.y)+' em '+c.label; } } } }
+      })
+    });
+  }
+
+  /* 2. Distribuição por situação (setores circulares) */
+  function renderSituacao(rows){
+    var counts = groupCount(rows, 'situacao');
+    // Mantém a ordem fixa (categorias de evasão agrupadas em vermelho) em vez de ordenar por frequência.
+    var order = SITUACAO_ORDER.filter(function(s){return counts[s]!=null;});
+    var total = rows.length || 1;
+    upsertChart('situacao','chartSituacao',{
+      type:'pie',
+      data:{ labels: order.map(cap), datasets:[{
+        data: order.map(function(s){return counts[s];}),
+        backgroundColor: order.map(situacaoColor),
+        borderColor: cssv('--surface'), borderWidth:2,
+        hoverOffset: 22, hoverBorderWidth:3
+      }]},
+      options: baseChartOptions({
+        scales:{},
+        interaction:{ mode:'point', intersect:true },
+        animation:{ animateRotate:true, animateScale:false },
+        hover:{ mode:'point', intersect:true },
+        plugins:{
+          legend:{ position:'bottom' },
+          tooltip:{ callbacks:{ label:function(c){
+            var v=c.parsed; return c.label+': '+fmtInt(v)+' registros · '+fmtPct(100*v/total);
+          }}}
+        }
+      })
+    });
+  }
+
+  /* 3. Situação por recorte (100% stacked) */
+  function renderCoorte(rows){
+    var years = STATE.meta.anos_ingresso;
+    var perYear = {};
+    years.forEach(function(y){ perYear[y] = {}; });
+    rows.forEach(function(r){ perYear[r.ano_ingresso][r.situacao] = (perYear[r.ano_ingresso][r.situacao]||0)+1; });
+    var totals = {}; years.forEach(function(y){ totals[y] = Object.values(perYear[y]).reduce(function(a,b){return a+b;},0) || 1; });
+
+    var datasets = SITUACAO_ORDER.map(function(sit){
+      return {
+        label: cap(sit), backgroundColor: situacaoColor(sit),
+        data: years.map(function(y){ return 100*(perYear[y][sit]||0)/totals[y]; }),
+        _raw: years.map(function(y){ return perYear[y][sit]||0; }),
+        borderRadius:2, maxBarThickness:38, borderSkipped:false
+      };
+    });
+    upsertChart('coorte','chartCoorte',{
+      type:'bar',
+      data:{ labels: years, datasets: datasets },
+      options: baseChartOptions({
+        scales:{ x:{stacked:true, grid:{color:'transparent'}, ticks:{color:cssv('--muted')}}, y:{stacked:true, min:0, max:100, grid:{color:cssv('--grid')}, ticks:{color:cssv('--muted'), callback:function(v){return v+'%';}}} },
+        plugins:{ legend:{position:'bottom'}, tooltip:{ callbacks:{ label:function(c){
+          var raw = c.dataset._raw[c.dataIndex];
+          return c.dataset.label+': '+fmtInt(raw)+' ('+c.parsed.y.toFixed(1)+'%) · recorte '+c.label;
+        }}}}
+      })
+    });
+  }
+
+  /* 9. Tendência por recorte (linhas) */
+  function renderTendencia(rows){
+    var years = STATE.meta.anos_ingresso;
+    var perYear = {}; years.forEach(function(y){ perYear[y] = {total:0, concl:0, evad:0, mat:0}; });
+    rows.forEach(function(r){
+      var b = perYear[r.ano_ingresso]; b.total++;
+      if(r.situacao==='CONCLUSÃO DE CURSO') b.concl++;
+      if(STATE.evasaoSet.has(r.situacao)) b.evad++;
+      if(r.situacao==='MATRICULADO') b.mat++;
+    });
+    function series(key){ return years.map(function(y){ var b=perYear[y]; return b.total ? 100*b[key]/b.total : 0; }); }
+    upsertChart('tendencia','chartTendencia',{
+      type:'line',
+      data:{ labels: years, datasets:[
+        {label:'% Concluintes', data:series('concl'), borderColor:situacaoColor('CONCLUSÃO DE CURSO'), backgroundColor:situacaoColor('CONCLUSÃO DE CURSO'), tension:.3, borderWidth:2, pointRadius:3},
+        {label:'% Evadidos (definição atual)', data:series('evad'), borderColor:cssv('--critical'), backgroundColor:cssv('--critical'), tension:.3, borderWidth:2, pointRadius:3},
+        {label:'% Matriculados', data:series('mat'), borderColor:situacaoColor('MATRICULADO'), backgroundColor:situacaoColor('MATRICULADO'), tension:.3, borderWidth:2, pointRadius:3, borderDash:[4,3]}
+      ]},
+      options: baseChartOptions({
+        scales:{ x:{grid:{color:'transparent'}, ticks:{color:cssv('--muted')}}, y:{min:0, max:100, grid:{color:cssv('--grid')}, ticks:{color:cssv('--muted'), callback:function(v){return v+'%';}}} },
+        plugins:{ legend:{position:'bottom'}, tooltip:{ callbacks:{ label:function(c){ return c.dataset.label+': '+c.parsed.y.toFixed(1)+'% (recorte '+c.label+')'; } } } }
+      })
+    });
+  }
+
+  /* 4. Tempo médio até a situação, por situação acadêmica (em meses) */
+  function renderTempo(rows){
+    var bySit = {};
+    SITUACAO_ORDER.forEach(function(s){bySit[s]=[];});
+    rows.forEach(function(r){ if(r.meses_situacao!=null && bySit[r.situacao]) bySit[r.situacao].push(r.meses_situacao); });
+    var order = SITUACAO_ORDER.filter(function(s){ return s !== 'MATRICULADO'; });
+    var situacoesAtivas = Array.from(STATE.filters.situacao);
+    var capText = situacoesAtivas.length===1
+      ? 'Filtrado para: '+cap(situacoesAtivas[0])+'. Tempo médio (em meses) até essa situação ocorrer.'
+      : 'Tempo médio decorrido (em meses) até cada situação acadêmica, considerando as situações selecionadas no filtro. Matriculados não são exibidos aqui: por não terem Data da Situação (matrícula ainda ativa), nunca há tempo a calcular para essa categoria.';
+    document.getElementById('tempoSituacaoCap').textContent = capText;
+    upsertChart('tempo','chartTempo',{
+      type:'bar',
+      data:{ labels: order.map(cap), datasets:[{
+        data: order.map(function(s){ return bySit[s].length ? mean(bySit[s]) : null; }),
+        backgroundColor: order.map(situacaoColor),
+        borderRadius:4, maxBarThickness:44
+      }]},
+      options: baseChartOptions({
+        plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:function(c){
+          var s = order[c.dataIndex], n = bySit[s].length;
+          return n ? c.parsed.y.toFixed(1)+' meses (n='+n+')' : 'Sem dados de tempo disponíveis para esta situação';
+        } } } },
+        scales:{
+          x:{ grid:{color:'transparent'}, ticks:{color:cssv('--ink-2'), font:{family:'Arial', size:10.5}} },
+          y:{ grid:{color:cssv('--grid')}, ticks:{color:cssv('--muted')}, title:{display:true, text:'Meses', color:cssv('--muted')} }
+        }
+      })
+    });
+  }
+
+  /* 5. Idade média por situação */
+  function renderIdade(rows){
+    var bySit = {};
+    SITUACAO_ORDER.forEach(function(s){bySit[s]=[];});
+    rows.forEach(function(r){ if(r.idade_situacao!=null && bySit[r.situacao]) bySit[r.situacao].push(r.idade_situacao); });
+    var order = SITUACAO_ORDER.filter(function(s){return bySit[s].length;});
+    upsertChart('idade','chartIdade',{
+      type:'bar',
+      data:{ labels: order.map(cap), datasets:[{ data: order.map(function(s){return mean(bySit[s]);}), backgroundColor: order.map(situacaoColor), borderRadius:4, maxBarThickness:44 }]},
+      options: baseChartOptions({
+        plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:function(c){ return c.parsed.y.toFixed(1)+' anos (n='+bySit[order[c.dataIndex]].length+')'; } } } },
+        scales:{ x:{grid:{color:'transparent'}, ticks:{color:cssv('--ink-2'), font:{family:'Arial', size:10.5}}}, y:{grid:{color:cssv('--grid')}, ticks:{color:cssv('--muted')}} }
+      })
+    });
+  }
+
+  /* 6. Tipo de ingresso × situação (100% stacked) */
+  function renderIngressoSituacao(rows){
+    var cats = STATE.meta.ingresso_pors;
+    var per = {}; cats.forEach(function(c){per[c]={};});
+    rows.forEach(function(r){ per[r.ingresso_por][r.situacao] = (per[r.ingresso_por][r.situacao]||0)+1; });
+    var totals = {}; cats.forEach(function(c){ totals[c] = Object.values(per[c]).reduce(function(a,b){return a+b;},0) || 1; });
+    var order = cats.filter(function(c){return totals[c]>0 && Object.keys(per[c]).length;}).sort(function(a,b){return totals[b]-totals[a];});
+    var datasets = SITUACAO_ORDER.map(function(sit){
+      return { label:cap(sit), backgroundColor:situacaoColor(sit), borderRadius:2, maxBarThickness:44,
+        data: order.map(function(c){ return 100*(per[c][sit]||0)/totals[c]; }),
+        _raw: order.map(function(c){ return per[c][sit]||0; })
+      };
+    });
+    upsertChart('ingressoSituacao','chartIngressoSituacao',{
+      type:'bar',
+      data:{ labels: order.map(cap), datasets: datasets },
+      options: baseChartOptions({
+        scales:{ x:{stacked:true, grid:{color:'transparent'}, ticks:{color:cssv('--muted'), font:{family:'Arial', size:10}, maxRotation:28, minRotation:0}}, y:{stacked:true, min:0, max:100, grid:{color:cssv('--grid')}, ticks:{color:cssv('--muted'), callback:function(v){return v+'%';}}} },
+        plugins:{ legend:{position:'bottom'}, tooltip:{ callbacks:{ label:function(c){
+          var raw=c.dataset._raw[c.dataIndex]; return c.dataset.label+': '+fmtInt(raw)+' ('+c.parsed.y.toFixed(1)+'%) · '+c.label;
+        }}}}
+      })
+    });
+  }
+
+  /* 7. Conclusão e abandono por modalidade */
+  function renderConclusaoAbandono(rows){
+    var cats = STATE.meta.ingresso_pors;
+    var per = {}; cats.forEach(function(c){per[c]={total:0, concl:0, aband:0};});
+    rows.forEach(function(r){
+      var b = per[r.ingresso_por]; b.total++;
+      if(r.situacao==='CONCLUSÃO DE CURSO') b.concl++;
+      if(r.situacao==='ABANDONO') b.aband++;
+    });
+    var order = cats.filter(function(c){return per[c].total>0;}).sort(function(a,b){return per[b].total-per[a].total;});
+    upsertChart('conclAband','chartConclusaoAbandono',{
+      type:'bar',
+      data:{ labels: order.map(cap), datasets:[
+        {label:'% Conclusão', data: order.map(function(c){return 100*per[c].concl/per[c].total;}), backgroundColor:situacaoColor('CONCLUSÃO DE CURSO'), borderRadius:4, maxBarThickness:26},
+        {label:'% Abandono', data: order.map(function(c){return 100*per[c].aband/per[c].total;}), backgroundColor:situacaoColor('ABANDONO'), borderRadius:4, maxBarThickness:26}
+      ]},
+      options: baseChartOptions({
+        scales:{ x:{grid:{color:'transparent'}, ticks:{color:cssv('--muted'), font:{family:'Arial', size:10}, maxRotation:28}}, y:{min:0, grid:{color:cssv('--grid')}, ticks:{color:cssv('--muted'), callback:function(v){return v+'%';}}} },
+        plugins:{ legend:{position:'bottom'}, tooltip:{ callbacks:{ label:function(c){
+          var cIdx=c.dataIndex, cat=order[cIdx], b=per[cat];
+          var n = c.datasetIndex===0? b.concl : b.aband;
+          return c.dataset.label+': '+c.parsed.y.toFixed(1)+'% ('+n+' de '+b.total+')';
+        }}}}
+      })
+    });
+  }
+
+  /* 8. Cor/Raça × situação (100% stacked) */
+  function renderCorRaca(rows){
+    var cats = STATE.meta.cor_racas;
+    var per = {}; cats.forEach(function(c){per[c]={};});
+    rows.forEach(function(r){ per[r.cor_raca][r.situacao] = (per[r.cor_raca][r.situacao]||0)+1; });
+    var totals = {}; cats.forEach(function(c){ totals[c] = Object.values(per[c]).reduce(function(a,b){return a+b;},0) || 1; });
+    var order = cats.filter(function(c){return totals[c]>0;}).sort(function(a,b){return totals[b]-totals[a];});
+    var datasets = SITUACAO_ORDER.map(function(sit){
+      return { label:cap(sit), backgroundColor:situacaoColor(sit), borderRadius:2, maxBarThickness:52,
+        data: order.map(function(c){ return 100*(per[c][sit]||0)/totals[c]; }),
+        _raw: order.map(function(c){ return per[c][sit]||0; })
+      };
+    });
+    upsertChart('corRaca','chartCorRaca',{
+      type:'bar',
+      data:{ labels: order.map(cap), datasets: datasets },
+      options: baseChartOptions({
+        scales:{ x:{stacked:true, grid:{color:'transparent'}, ticks:{color:cssv('--ink-2'), font:{family:'Arial', size:11}}}, y:{stacked:true, min:0, max:100, grid:{color:cssv('--grid')}, ticks:{color:cssv('--muted'), callback:function(v){return v+'%';}}} },
+        plugins:{ legend:{position:'bottom'}, tooltip:{ callbacks:{ label:function(c){
+          var raw=c.dataset._raw[c.dataIndex]; return c.dataset.label+': '+fmtInt(raw)+' ('+c.parsed.y.toFixed(1)+'%) · '+c.label;
+        }}}}
+      })
+    });
+  }
+
+  var CAP_STOPWORDS = ['de','da','do','das','dos','e','a','o','os','as','em','no','na','nos','nas','para','por','com','ou'];
+  function cap(s){
+    if(!s) return s;
+    return s.toLowerCase().split(' ').map(function(w, i){
+      if(!w) return w;
+      if(i>0 && CAP_STOPWORDS.indexOf(w)>=0) return w;
+      return w.charAt(0).toUpperCase() + w.slice(1);
+    }).join(' ');
+  }
+
+  function buildMethodology(){
+    var t = STATE.meta.treat;
+    var ul = document.getElementById('methodTreat');
+    var items = [];
+    if(t.n_sexo_typo_corrigido>0) items.push(t.n_sexo_typo_corrigido+' registro(s) com "MACULINO" corrigido(s) para "MASCULINO" (erro de digitação).');
+    if(t.n_sexo_faltante>0) items.push(t.n_sexo_faltante+' registro(s) sem Sexo informado — mantido como categoria "Não informado".');
+    if(t.n_cidade_grafias_unificadas>0) items.push(t.n_cidade_grafias_unificadas+' cidades com grafias divergentes (acentuação/maiúsculas, ex.: "Jacarezinho" e "JACAREZINHO") foram unificadas para uma única categoria.');
+    if(t.n_cidade_faltante>0) items.push(t.n_cidade_faltante+' registro(s) sem Cidade informada — mantidos como "Sem informação".');
+    items.push(t.n_idade_ingresso_invalida+' registro(s) com idade no ingresso implausível (menor que 10 ou maior que 25 anos, provável erro de digitação na data de nascimento) — mantidos e incluídos normalmente no cálculo da idade média no ingresso, conforme solicitado.');
+    items.push(
+      (t.n_tempo_negativo>0
+        ? t.n_tempo_negativo+' registro(s) com tempo até a situação negativo (situação anterior à data de ingresso assumida) — excluídos apenas dos gráficos/médias de tempo.'
+        : 'Tempo até a situação: com a data de ingresso assumida em 1º de janeiro, nenhum registro desta base resulta em tempo negativo.'),
+      t.n_matriculados_sem_data_situacao+' registros "Matriculado" não possuem Data da Situação, o que é esperado (matrícula ainda ativa).',
+      'Nenhuma categoria de Situação, Cor/Raça, Cidade, Curso ou Tipo de Ingresso foi renomeada, mesclada ou removida da base original.'
+    );
+    items.forEach(function(t){ var li=document.createElement('li'); li.textContent=t; ul.appendChild(li); });
+  }
+
+  /* redraw charts on theme change */
+  function themeChangeHandler(){ if(STATE.rows.length) recompute(); }
+  new MutationObserver(themeChangeHandler).observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']});
+
+  /* ---------------- alternância manual claro/escuro ---------------- */
+  (function(){
+    var btn = document.getElementById('themeToggle');
+    var icon = document.getElementById('themeIcon');
+    var label = document.getElementById('themeLabel');
+    function applyLabel(){
+      var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      icon.textContent = isDark ? '☀️' : '🌙';
+      label.textContent = isDark ? 'Modo claro' : 'Modo escuro';
+    }
+    btn.addEventListener('click', function(){
+      var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      if(isDark){ document.documentElement.removeAttribute('data-theme'); }
+      else{ document.documentElement.setAttribute('data-theme','dark'); }
+      applyLabel();
+    });
+    applyLabel();
+  })();
+
+})();
+</script>

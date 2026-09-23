@@ -31,7 +31,7 @@
 //# sourceMappingURL=leaflet.js.map
 </script>
 <script>
-/* leaflet.heat 0.2.0 — embutido para funcionar sem internet/CDN */
+/* leaflet.heat 0.2.0 — embutido (não é mais usado pelos mapas, mantido por compatibilidade) */
 /*
  (c) 2014, Vladimir Agafonkin
  simpleheat, a tiny JavaScript library for drawing heatmaps with Canvas
@@ -289,7 +289,7 @@ L.HeatLayer=(L.Layer?L.Layer:L.Class).extend({initialize:function(t,i){this._lat
   ::-webkit-scrollbar{height:8px; width:8px;}
   ::-webkit-scrollbar-thumb{background:var(--border-strong); border-radius:4px;}
 
-  .map-wrap{position:relative; height:440px; border-radius:8px; overflow:hidden; border:1px solid var(--border-strong);}
+  .map-wrap{position:relative; z-index:0; isolation:isolate; height:440px; border-radius:8px; overflow:hidden; border:1px solid var(--border-strong);}
   .map-wrap #mapaCalor, .map-wrap #mapaCalorGeral{width:100%; height:100%; background:var(--surface-2);}
   .map-unavailable{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; padding:24px; font-size:.82rem; color:var(--muted); background:var(--surface-2);}
   .map-unavailable[hidden]{display:none;}
@@ -297,6 +297,12 @@ L.HeatLayer=(L.Layer?L.Layer:L.Class).extend({initialize:function(t,i){this._lat
   .map-legend .grad{width:140px; height:10px; border-radius:5px; background:linear-gradient(to right, #F6D9D9, #D64545, #A61B1B, #7F1D1D); border:1px solid var(--border-strong);}
   .map-legend .grad-blue{background:linear-gradient(to right, #D9E6F6, #5B8AC4, #2E5E94, #12293F);}
   .map-legend .dot{display:inline-block; width:9px; height:9px; border-radius:50%; background:#2F7D32; border:1.5px solid #1F5A28; vertical-align:middle;}
+  .map-legend .size-sample{display:inline-flex; align-items:center; gap:5px; vertical-align:middle;}
+  .map-legend .circ{display:inline-block; border-radius:50%; vertical-align:middle;}
+  .map-legend .circ.small{width:8px; height:8px; background:#F6D9D9; border:1.5px solid #7F1D1D;}
+  .map-legend .circ.large{width:20px; height:20px; background:#A61B1B; border:1.75px solid #7F1D1D;}
+  .map-legend .circ.small.blue{background:#D9E6F6; border-color:#12293F;}
+  .map-legend .circ.large.blue{background:#2E5E94; border-color:#12293F;}
   .leaflet-popup-content-wrapper, .leaflet-popup-tip{background:var(--surface); color:var(--ink);}
   .leaflet-popup-content{font-family:'Open Sans', Arial, Helvetica, sans-serif; font-size:.8rem;}
   .leaflet-container a.leaflet-popup-close-button{color:var(--ink-2);}
@@ -374,12 +380,12 @@ L.HeatLayer=(L.Layer?L.Layer:L.Class).extend({initialize:function(t,i){this._lat
   <div class="chart-grid full" style="margin-top:14px;">
     <div class="card">
       <h3>Mapa de calor — registros por cidade</h3>
-      <div class="cap">Concentração de todos os registros por cidade de origem, independentemente da situação acadêmica, no recorte selecionado. Passe o mouse ou toque em um ponto para ver a cidade e a quantidade. Cidades sem coordenada conhecida (ex.: "Sem informação") não aparecem no mapa.</div>
+      <div class="cap">Concentração de todos os registros por cidade de origem, independentemente da situação acadêmica, no recorte selecionado. Cada círculo representa uma cidade: quanto maior a intensidade de registros, maior o círculo e mais forte sua cor. Passe o mouse ou toque em um círculo para ver a cidade e a quantidade. Cidades sem coordenada conhecida (ex.: "Sem informação") não aparecem no mapa.</div>
       <div class="map-wrap">
         <div id="mapaCalorGeral"></div>
         <div class="map-unavailable" id="mapaGeralIndisponivel" hidden>Mapa indisponível: não foi possível carregar a biblioteca de mapas (é necessária conexão com a internet para os mapas e a camada de calor).</div>
       </div>
-      <div class="map-legend"><span>Menor concentração</span><span class="grad grad-blue"></span><span>Maior concentração</span><span style="margin-left:14px;"><span class="dot"></span> Cidade</span></div>
+      <div class="map-legend"><span class="size-sample"><span class="circ small blue"></span><span class="circ large blue"></span></span><span>Menor concentração</span><span class="grad grad-blue"></span><span>Maior concentração</span></div>
     </div>
   </div>
 </section>
@@ -458,12 +464,12 @@ L.HeatLayer=(L.Layer?L.Layer:L.Class).extend({initialize:function(t,i){this._lat
   <div class="chart-grid full" style="margin-top:14px;">
     <div class="card">
       <h3>Mapa de calor — evadidos por cidade</h3>
-      <div class="cap">Concentração de registros evadidos (conforme definição atual) por cidade de origem, no recorte selecionado. Passe o mouse ou toque em um ponto para ver a cidade e a quantidade. Cidades sem coordenada conhecida (ex.: "Sem informação") não aparecem no mapa.</div>
+      <div class="cap">Concentração de registros evadidos (conforme definição atual) por cidade de origem, no recorte selecionado. Cada círculo representa uma cidade: quanto maior a intensidade de evadidos, maior o círculo e mais forte sua cor. Passe o mouse ou toque em um círculo para ver a cidade e a quantidade. Cidades sem coordenada conhecida (ex.: "Sem informação") não aparecem no mapa.</div>
       <div class="map-wrap">
         <div id="mapaCalor"></div>
         <div class="map-unavailable" id="mapaIndisponivel" hidden>Mapa indisponível: não foi possível carregar a biblioteca de mapas (é necessária conexão com a internet para os mapas e a camada de calor).</div>
       </div>
-      <div class="map-legend"><span>Menor concentração</span><span class="grad"></span><span>Maior concentração</span><span style="margin-left:14px;"><span class="dot"></span> Cidade</span></div>
+      <div class="map-legend"><span class="size-sample"><span class="circ small"></span><span class="circ large"></span></span><span>Menor concentração</span><span class="grad"></span><span>Maior concentração</span></div>
     </div>
   </div>
 </section>
@@ -566,23 +572,45 @@ L.HeatLayer=(L.Layer?L.Layer:L.Class).extend({initialize:function(t,i){this._lat
     "JUNDIAÍ DO SUL":            [-23.4372350, -50.2480450]
   };
 
-  // Gerador pseudo-aleatório determinístico (mesma cidade => mesma nuvem sempre, entre re-renderizações)
-  function seededRandomFactory(seed){
-    var s = seed % 2147483647; if (s <= 0) s += 2147483646;
-    return function(){ s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+  // ---- utilidades de cor para interpolação do gradiente (usadas pelos círculos proporcionais) ----
+  function hexToRgb(hex){
+    hex = hex.replace('#','');
+    if(hex.length===3){ hex = hex.split('').map(function(c){ return c+c; }).join(''); }
+    var num = parseInt(hex,16);
+    return [(num>>16)&255, (num>>8)&255, num&255];
   }
-  function hashString(str){
-    var h = 0;
-    for(var i=0;i<str.length;i++){ h = (h*31 + str.charCodeAt(i)) | 0; }
-    return Math.abs(h) || 1;
+  function rgbToHex(rgb){
+    return '#'+rgb.map(function(v){
+      var h = Math.round(Math.max(0,Math.min(255,v))).toString(16);
+      return h.length===1 ? '0'+h : h;
+    }).join('');
+  }
+  function interpolateGradient(stops, t){
+    t = Math.max(0, Math.min(1, t));
+    for(var i=0;i<stops.length-1;i++){
+      var a = stops[i], b = stops[i+1];
+      if(t>=a[0] && t<=b[0]){
+        var localT = (b[0]===a[0]) ? 0 : (t-a[0])/(b[0]-a[0]);
+        var ca = hexToRgb(a[1]), cb = hexToRgb(b[1]);
+        return rgbToHex([
+          ca[0]+(cb[0]-ca[0])*localT,
+          ca[1]+(cb[1]-ca[1])*localT,
+          ca[2]+(cb[2]-ca[2])*localT
+        ]);
+      }
+    }
+    return stops[stops.length-1][1];
   }
 
-  // Fábrica genérica de mapa de calor por cidade — usada tanto no mapa de evadidos quanto no
-  // mapa geral de registros. Ambos compartilham o mesmo mecanismo de nuvens jitteradas (raio e
-  // densidade crescendo com a raiz do número de registros da cidade); o que muda entre os dois
-  // é apenas o filtro de linhas contabilizadas, a paleta de cor do gradiente e os textos.
-  function makeCityHeatMap(opts){
-    var map = { instance:null, heat:null, markers:null, available:null };
+  // Fábrica genérica de mapa por cidade com círculos proporcionais — usada tanto no mapa de
+  // evadidos quanto no mapa geral de registros. Cada cidade é representada por um único círculo
+  // com contorno bem definido: quanto maior a intensidade do dado (contagem na cidade em relação
+  // ao maior valor do recorte atual), maior o raio do círculo e mais forte/escura sua cor de
+  // preenchimento (interpolada ao longo da paleta definida em opts.colorStops). O que muda entre
+  // os dois mapas é apenas o filtro de linhas contabilizadas, a paleta de cor e os textos.
+  function makeCityIntensityMap(opts){
+    var map = { instance:null, markers:null, available:null };
+    var MIN_RADIUS = 7, MAX_RADIUS = 34; // px, raio do círculo (constante independente do zoom)
 
     function init(){
       if(map.available !== null) return; // já inicializado (com ou sem sucesso)
@@ -598,10 +626,6 @@ L.HeatLayer=(L.Layer?L.Layer:L.Class).extend({initialize:function(t,i){this._lat
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
           maxZoom: 18,
           attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        }).addTo(map.instance);
-        map.heat = L.heatLayer([], {
-          radius:34, blur:28, minOpacity:0.22, maxZoom:11, max:1,
-          gradient: opts.gradient
         }).addTo(map.instance);
         map.markers = L.layerGroup().addTo(map.instance);
         map.available = true;
@@ -623,48 +647,28 @@ L.HeatLayer=(L.Layer?L.Layer:L.Class).extend({initialize:function(t,i){this._lat
         counts[r.cidade] = (counts[r.cidade] || 0) + 1;
       });
 
-      // Número de pontos jitterados por cidade: cresce com n, com teto para desempenho.
-      var CAP_POINTS = 260;
-      var heatPoints = [];
+      var maxCount = 0;
+      Object.keys(counts).forEach(function(c){ maxCount = Math.max(maxCount, counts[c]); });
+
       map.markers.clearLayers();
-      Object.keys(counts).forEach(function(cidade){
+      // Desenha do menor para o maior, para que os círculos maiores fiquem por cima (não escondam os menores).
+      Object.keys(counts).sort(function(a,b){ return counts[a]-counts[b]; }).forEach(function(cidade){
         var coords = CITY_COORDS[cidade];
         var n = counts[cidade];
-        var numPoints = Math.max(1, Math.min(n, CAP_POINTS));
+        var t = maxCount > 0 ? n / maxCount : 0; // intensidade relativa (0 a 1) no recorte atual
+        var radius = MIN_RADIUS + (MAX_RADIUS - MIN_RADIUS) * Math.sqrt(t); // raiz => área proporcional à intensidade
+        var fillColor = interpolateGradient(opts.colorStops, t);
 
-        // Raio de dispersão (em graus) cresce com a raiz de n: cidades maiores têm nuvens
-        // visivelmente maiores, além de mais densas (mais pontos somados pela leaflet.heat).
-        var spreadDeg = 0.008 + 0.0055 * Math.sqrt(n);
-        var latRad = coords[0] * Math.PI / 180;
-        var lonCorrection = Math.max(0.35, Math.cos(latRad)); // evita esticar demasiado em latitudes altas
-
-        var rand = seededRandomFactory(hashString(opts.mapDivId + '|' + cidade));
-        for(var i=0; i<numPoints; i++){
-          var angle = rand() * 2 * Math.PI;
-          var r = spreadDeg * Math.sqrt(rand()); // amostragem uniforme em disco
-          var dLat = r * Math.sin(angle);
-          var dLon = (r * Math.cos(angle)) / lonCorrection;
-          heatPoints.push([coords[0] + dLat, coords[1] + dLon, 1]);
-        }
-
-        var marker = L.circleMarker(coords, {
-          radius: 5,
-          color: '#1F5A28',
-          weight: 1.5,
-          fillColor: '#2F7D32',
-          fillOpacity: 0.9
+        var circle = L.circleMarker(coords, {
+          radius: radius,
+          color: opts.strokeColor,     // contorno bem definido, mesma família de cor, tom mais escuro
+          weight: 1.75,
+          fillColor: fillColor,
+          fillOpacity: 0.8
         });
-        marker.bindTooltip(cap(cidade) + ': ' + fmtInt(n) + ' ' + (n===1 ? opts.unitSingular : opts.unitPlural), { direction:'top' });
-        marker.addTo(map.markers);
+        circle.bindTooltip(cap(cidade) + ': ' + fmtInt(n) + ' ' + (n===1 ? opts.unitSingular : opts.unitPlural), { direction:'top' });
+        circle.addTo(map.markers);
       });
-
-      // Ajusta a escala de cor ao maior número de pontos-jitter do recorte atual, para que
-      // o gradiente continue distinguindo bem as cidades entre filtros diferentes.
-      var maxPoints = 0;
-      Object.keys(counts).forEach(function(c){ maxPoints = Math.max(maxPoints, Math.min(counts[c], CAP_POINTS)); });
-      map.heat.setOptions({ max: Math.max(1, maxPoints * 0.55) });
-
-      map.heat.setLatLngs(heatPoints);
 
       // Corrige o dimensionamento do mapa caso o container tenha ficado oculto/redimensionado antes.
       setTimeout(function(){ if(map.instance) map.instance.invalidateSize(); }, 50);
@@ -674,11 +678,12 @@ L.HeatLayer=(L.Layer?L.Layer:L.Class).extend({initialize:function(t,i){this._lat
   }
 
   // Mapa 1 (existente): concentração de evadidos por cidade — gradiente vermelho.
-  var evadidosHeatMap = makeCityHeatMap({
+  var evadidosHeatMap = makeCityIntensityMap({
     mapDivId: 'mapaCalor',
     unavailDivId: 'mapaIndisponivel',
     // Mesma família de vermelhos usada nas categorias de evadidos do painel (claro → escuro).
-    gradient: {0.0:'#F6D9D9', 0.4:'#D64545', 0.7:'#A61B1B', 1.0:'#7F1D1D'},
+    colorStops: [[0.0,'#F6D9D9'], [0.4,'#D64545'], [0.7,'#A61B1B'], [1.0,'#7F1D1D']],
+    strokeColor: '#7F1D1D',
     filterRows: function(r){ return STATE.evasaoSet.has(r.situacao); },
     unitSingular: 'evadido',
     unitPlural: 'evadidos'
@@ -687,10 +692,11 @@ L.HeatLayer=(L.Layer?L.Layer:L.Class).extend({initialize:function(t,i){this._lat
 
   // Mapa 2 (novo): concentração de TODOS os registros por cidade, independentemente da situação
   // acadêmica — gradiente azul, mesmo formato/mecanismo do mapa de evadidos.
-  var geralHeatMap = makeCityHeatMap({
+  var geralHeatMap = makeCityIntensityMap({
     mapDivId: 'mapaCalorGeral',
     unavailDivId: 'mapaGeralIndisponivel',
-    gradient: {0.0:'#D9E6F6', 0.4:'#5B8AC4', 0.7:'#2E5E94', 1.0:'#12293F'},
+    colorStops: [[0.0,'#D9E6F6'], [0.4,'#5B8AC4'], [0.7,'#2E5E94'], [1.0,'#12293F']],
+    strokeColor: '#12293F',
     filterRows: null, // conta todos os registros do recorte atual, sem filtrar por situação
     unitSingular: 'registro',
     unitPlural: 'registros'

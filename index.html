@@ -31,7 +31,7 @@
 //# sourceMappingURL=leaflet.js.map
 </script>
 <script>
-/* leaflet.heat 0.2.0 — embutido (não é mais usado pelos mapas, mantido por compatibilidade) */
+/* leaflet.heat 0.2.0 — embutido (não usado pelos mapas atuais, mantido por compatibilidade) */
 /*
  (c) 2014, Vladimir Agafonkin
  simpleheat, a tiny JavaScript library for drawing heatmaps with Canvas
@@ -950,6 +950,79 @@ L.HeatLayer=(L.Layer?L.Layer:L.Class).extend({initialize:function(t,i){this._lat
     }
   }
 
+  /* ---------------- plugin: "explodir" o setor sob o mouse em gráficos de pizza ----------------
+     Ao passar o mouse sobre um setor, ele cresce (zoom) e os demais encolhem proporcionalmente,
+     com uma pequena animação suave (interpolação a cada frame). Escopado apenas aos gráficos que
+     recebem este plugin na própria configuração (não afeta outros gráficos de pizza do painel). */
+  function makeExplodeHoverPlugin(opts){
+    opts = opts || {};
+    var growTo = opts.growScale != null ? opts.growScale : 1.14;
+    var shrinkTo = opts.shrinkScale != null ? opts.shrinkScale : 0.86;
+    var ease = opts.ease != null ? opts.ease : 0.22;
+
+    function startAnimation(chart, hoverIndex){
+      var meta = chart.getDatasetMeta(0);
+      if(!meta || !meta.data || !meta.data.length) return;
+      var n = meta.data.length;
+      if(!chart.$$explodeScales){ chart.$$explodeScales = meta.data.map(function(){ return 1; }); }
+      var targets = [];
+      for(var i=0;i<n;i++){
+        targets[i] = (hoverIndex == null) ? 1 : (i === hoverIndex ? growTo : shrinkTo);
+      }
+      if(chart.$$explodeRAF){ cancelAnimationFrame(chart.$$explodeRAF); }
+      function step(){
+        var scales = chart.$$explodeScales;
+        var done = true;
+        for(var i=0;i<scales.length;i++){
+          var diff = targets[i] - scales[i];
+          if(Math.abs(diff) > 0.002){ scales[i] += diff*ease; done = false; }
+          else scales[i] = targets[i];
+        }
+        if(chart.canvas){ chart.draw(); }
+        chart.$$explodeRAF = done ? null : requestAnimationFrame(step);
+      }
+      chart.$$explodeRAF = requestAnimationFrame(step);
+    }
+
+    return {
+      id: 'explodeHover',
+      afterDatasetsUpdate: function(chart){
+        var meta = chart.getDatasetMeta(0);
+        if(!meta || !meta.data) return;
+        meta.data.forEach(function(arc){
+          arc._baseOuterRadius = arc.outerRadius;
+          arc._baseInnerRadius = arc.innerRadius;
+        });
+      },
+      beforeDatasetsDraw: function(chart){
+        var meta = chart.getDatasetMeta(0);
+        if(!meta || !meta.data || !chart.$$explodeScales) return;
+        meta.data.forEach(function(arc, i){
+          var base = arc._baseOuterRadius;
+          if(base == null) return;
+          var scale = chart.$$explodeScales[i] != null ? chart.$$explodeScales[i] : 1;
+          arc.outerRadius = base * scale;
+          if(arc._baseInnerRadius) arc.innerRadius = arc._baseInnerRadius * scale;
+        });
+      },
+      afterEvent: function(chart, args){
+        var type = args.event.type;
+        var idx = null;
+        if(type !== 'mouseout'){
+          var active = chart.getActiveElements();
+          idx = (active && active.length) ? active[0].index : null;
+        }
+        if(chart.$$explodeHoverIndex !== idx){
+          chart.$$explodeHoverIndex = idx;
+          startAnimation(chart, idx);
+        }
+      },
+      beforeDestroy: function(chart){
+        if(chart.$$explodeRAF){ cancelAnimationFrame(chart.$$explodeRAF); chart.$$explodeRAF = null; }
+      }
+    };
+  }
+
   /* 1. Ingressantes por ano, por sexo (barras agrupadas) + total (linha) */
   var SEXO_COLOR_MAP = { 'MASCULINO':'#2a78d6', 'FEMININO':'#B03060' };
   function renderIngressantes(rows){
@@ -991,11 +1064,15 @@ L.HeatLayer=(L.Layer?L.Layer:L.Class).extend({initialize:function(t,i){this._lat
     var total = rows.length || 1;
     upsertChart('situacao','chartSituacao',{
       type:'pie',
+      plugins: [ makeExplodeHoverPlugin({ growScale:1.14, shrinkScale:0.86 }) ],
       data:{ labels: order.map(cap), datasets:[{
         data: order.map(function(s){return counts[s];}),
         backgroundColor: order.map(situacaoColor),
         borderColor: cssv('--surface'), borderWidth:2,
-        hoverOffset: 22, hoverBorderWidth:3
+        hoverOffset: 22, hoverBorderWidth:3,
+        // Raio um pouco menor que o máximo disponível: reserva a margem que o setor precisa
+        // para crescer (ver makeExplodeHoverPlugin, growScale:1.14) sem encostar na legenda abaixo.
+        radius: '84%'
       }]},
       options: baseChartOptions({
         scales:{},
